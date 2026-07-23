@@ -7,6 +7,12 @@ class Tailctl < Formula
   sha256 "c4f63c97ea17a947c24f0b48232256a8b16707f962125186a234a34dc8ed20cc"
   license "MIT"
 
+  # Bumps here are manual, so let `brew livecheck` spot new PyPI releases.
+  livecheck do
+    url :stable
+    strategy :pypi
+  end
+
   depends_on "python@3.13"
   depends_on "tailscale"
 

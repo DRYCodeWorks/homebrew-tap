@@ -13,6 +13,9 @@ class Tailctl < Formula
     strategy :pypi
   end
 
+  # Pure Python, so it installs anywhere — but `init` discovers accounts through
+  # Tailscale.app, and macOS is the only platform upstream claims or tests.
+  depends_on :macos
   depends_on "python@3.13"
   depends_on "tailscale"
 

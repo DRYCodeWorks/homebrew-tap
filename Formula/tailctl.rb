@@ -6,6 +6,7 @@ class Tailctl < Formula
   url "https://files.pythonhosted.org/packages/eb/ec/44787a94cb609e6ad06ace0fe82fb5444acaa0e6c78a1100bdbd89d2adbb/tailctl-0.1.1.tar.gz"
   sha256 "c4f63c97ea17a947c24f0b48232256a8b16707f962125186a234a34dc8ed20cc"
   license "MIT"
+  # probe: throwaway change to confirm test-bot selects this formula
 
   # Bumps here are manual, so let `brew livecheck` spot new PyPI releases.
   livecheck do

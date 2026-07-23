@@ -3,8 +3,8 @@ class Tailctl < Formula
 
   desc "Per-identity Tailscale networking for parallel sessions on a single Mac"
   homepage "https://github.com/DRYCodeWorks/tailctl"
-  url "https://files.pythonhosted.org/packages/6a/03/52b84ee70c46d1ee02c6cda7dbf844fa625491da97d1a063baa3524b764f/tailctl-0.1.0.tar.gz"
-  sha256 "1eb1d7284bda1a82ed6ec8d014db3ec2a7b22f29e01d931dc6b0f9adc72341c2"
+  url "https://files.pythonhosted.org/packages/eb/ec/44787a94cb609e6ad06ace0fe82fb5444acaa0e6c78a1100bdbd89d2adbb/tailctl-0.1.1.tar.gz"
+  sha256 "c4f63c97ea17a947c24f0b48232256a8b16707f962125186a234a34dc8ed20cc"
   license "MIT"
 
   depends_on "python@3.13"
@@ -21,19 +21,16 @@ class Tailctl < Formula
   end
 
   def install
-    # Point the default tailscaled at this machine's Homebrew prefix (Intel != arm64).
-    inreplace "src/tailctl/config.py",
-              '"/opt/homebrew/opt/tailscale/bin/tailscaled"',
-              "\"#{formula_opt_bin("tailscale")}/tailscaled\""
-
     virtualenv_install_with_resources
   end
 
   test do
     assert_match "scaffold profiles.yaml", shell_output("#{bin}/tailctl --help")
 
-    # `init`/`up` need a signed-in Tailscale.app, so verify the prefix rewrite instead.
-    config = Pathname.glob(libexec/"lib/python*/site-packages/tailctl/config.py").first
-    assert_match "#{formula_opt_bin("tailscale")}/tailscaled", config.read
+    # `init`/`up` need a signed-in Tailscale.app, so just check that tailctl
+    # resolves a real tailscaled instead of a hardcoded prefix that may not exist.
+    resolved = shell_output("#{libexec}/bin/python -c " \
+                            "'import tailctl.config as c; print(c.DEFAULT_TAILSCALED)'").strip
+    assert_predicate Pathname(resolved), :executable?
   end
 end

@@ -42,12 +42,14 @@ jobs:
       - run: brew test-bot --only-setup
 
       - run: brew test-bot --only-tap-syntax
-      # Formulae land here by direct push, not by PR, so this must run on both
-      # events or the build/test gate never actually fires.
+      # PR-only by necessity: test-bot picks formulae by diffing HEAD against
+      # origin/main, which is empty on a push to main. Formula changes must
+      # therefore land via PR to get built and tested — see README.
       - run: brew test-bot --only-formulae
+        if: github.event_name == 'pull_request'
 
       - name: Upload bottles as artifact
-        if: always()
+        if: always() && github.event_name == 'pull_request'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: bottles_${{ matrix.os }}

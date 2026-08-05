@@ -48,6 +48,31 @@ jobs:
       - run: brew test-bot --only-formulae
         if: github.event_name == 'pull_request'
 
+      # test-bot has no cask equivalent — `--only-formulae` reports
+      # `testing_formulae (none)` for a cask-only change, and the tap-syntax
+      # step above covers style and audit but never installs anything. So a
+      # wrong sha256, an unreachable url, or an `app` stanza naming a bundle
+      # that is not in the archive all pass CI and fail for every user.
+      # Install what changed, then uninstall it.
+      - name: Install and uninstall changed casks
+        if: github.event_name == 'pull_request' && runner.os == 'macOS'
+        run: |
+          tap="$(brew --repo drycodeworks/tap)"
+          git -C "$tap" fetch -q origin "${{ github.base_ref }}"
+          changed="$(git -C "$tap" diff --name-only \
+            "origin/${{ github.base_ref }}...HEAD" -- Casks || true)"
+          if [[ -z "$changed" ]]; then
+            echo "No cask changes in this PR."
+            exit 0
+          fi
+          while read -r path; do
+            [[ -n "$path" ]] || continue
+            cask="$(basename "$path" .rb)"
+            echo "==> Installing drycodeworks/tap/$cask"
+            brew install --cask "drycodeworks/tap/$cask"
+            brew uninstall --cask "drycodeworks/tap/$cask"
+          done <<< "$changed"
+
       - name: Upload bottles as artifact
         if: always() && github.event_name == 'pull_request'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -1,6 +1,6 @@
 cask "tacet" do
-  version "0.1.1"
-  sha256 "72fbbde28665aae8e2d18c73b711f2b3b7e2c80fb75a86b32e7804743a37f14e"
+  version "0.1.2"
+  sha256 "0a9a73c6ff33b9888046f373ac9ac12790b18ef649d4cbb796b121e852931b98"
 
   url "https://github.com/DRYCodeWorks/tacet/releases/download/v#{version}/Tacet.zip",
       verified: "github.com/DRYCodeWorks/tacet/"

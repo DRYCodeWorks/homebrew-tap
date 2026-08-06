@@ -13,6 +13,11 @@ cask "tacet" do
     strategy :github_latest
   end
 
+  # The published bundle is `Mach-O thin (arm64)`. Without this, brew installs
+  # it happily on an Intel Mac and the binary cannot execute — the cask's own
+  # CI exec check caught exactly that on the macos-15-intel runner. Rosetta
+  # does not help: it translates x86_64 to arm64, not the other way.
+  depends_on arch: :arm64
   depends_on macos: :ventura
 
   app "Tacet.app"

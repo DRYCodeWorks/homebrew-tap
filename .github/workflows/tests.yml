@@ -68,8 +68,89 @@ jobs:
           while read -r path; do
             [[ -n "$path" ]] || continue
             cask="$(basename "$path" .rb)"
+
+            # Respect `depends_on arch:`. The matrix runs both Intel and Apple
+            # Silicon, and a cask that legitimately declares one of them is not
+            # a failure on the other — brew would refuse the install and the
+            # step would report a defect that does not exist.
+            # Homebrew normalises the token: `depends_on arch: :arm64` comes
+            # back as "arm", not "arm64", and :x86_64 as "intel". Comparing
+            # against uname -m directly never matches.
+            case "$(uname -m)" in
+              arm64) here=arm ;;
+              *)     here=intel ;;
+            esac
+            # One line on purpose: a multi-line python heredoc inside a YAML
+            # block scalar has to be indented to stay in the block, and python
+            # then rejects the uniform leading whitespace.
+            want="$(brew info --json=v2 --cask "drycodeworks/tap/$cask" 2>/dev/null \
+              | python3 -c "import json,sys; d=json.load(sys.stdin)['casks'][0]; a=(d.get('depends_on') or {}).get('arch') or []; print(','.join(x.get('type','') if isinstance(x,dict) else str(x) for x in a))" 2>/dev/null || true)"
+            if [[ -n "$want" && ",$want," != *",$here,"* ]]; then
+              echo "==> $cask requires arch [$want]; this runner is $here. Skipping."
+              continue
+            fi
+
             echo "==> Installing drycodeworks/tap/$cask"
+            # Snapshot first so we can exec ONLY what this cask added. A runner
+            # image ships its own apps, and some of them never exit on --help:
+            # "Google Chrome for Testing" hangs, which made a first version of
+            # this check fail every cask PR and blame the cask.
+            before="$(find /Applications -maxdepth 1 -name '*.app' | sort)"
             brew install --cask "drycodeworks/tap/$cask"
+            after="$(find /Applications -maxdepth 1 -name '*.app' | sort)"
+            installed="$(comm -13 <(echo "$before") <(echo "$after"))"
+
+            # Installing is not evidence the thing runs. DRYCodeWorks/tacet#25
+            # shipped a cask that installed perfectly, passed every check
+            # above, and then hung in _dyld_start on first exec — casks
+            # quarantine by default, and nothing ever launches these bundles
+            # through LaunchServices, so the consent gate had nobody to answer
+            # it. Green CI, broken for every user.
+            #
+            # So exec what we installed. --help is the cheapest proof a bundle
+            # reaches its own main(): a quarantine wedge blocks in the dynamic
+            # loader and never gets there. Bounded, because that failure mode
+            # is a hang rather than a crash — unbounded, it would burn the job
+            # timeout instead of naming the problem.
+            if [[ -z "$installed" ]]; then
+              echo "==> $cask added no .app to /Applications; nothing to exec."
+            fi
+            while read -r app; do
+              [[ -n "$app" && -d "$app" ]] || continue
+              exe_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' \
+                "$app/Contents/Info.plist" 2>/dev/null)" || continue
+              exe="$app/Contents/MacOS/$exe_name"
+              [[ -x "$exe" ]] || continue
+              echo "==> Executing $exe --help"
+              # Background-and-poll rather than timeout(1): a stock macOS
+              # runner has neither timeout nor gtimeout, so depending on
+              # coreutils would leave this silently unbounded on exactly the
+              # platform it protects. Same reasoning as run_bounded() in
+              # tacet's install-server.sh.
+              rc=0
+              "$exe" --help >/dev/null 2>&1 &
+              pid=$!
+              waited=0
+              while kill -0 "$pid" 2>/dev/null; do
+                if (( waited >= 30 )); then
+                  kill -9 "$pid" 2>/dev/null || true
+                  wait "$pid" 2>/dev/null || true
+                  rc=124
+                  break
+                fi
+                sleep 1
+                waited=$((waited + 1))
+              done
+              [[ $rc -eq 124 ]] || { wait "$pid"; rc=$?; }
+              [[ $rc -eq 0 ]] && continue
+              if [[ $rc -eq 124 ]]; then
+                echo "::error::$cask: $app hangs on exec (rc=124) — likely a quarantine wedge, see DRYCodeWorks/tacet#25"
+              else
+                echo "::error::$cask: $app exited $rc on --help"
+              fi
+              exit 1
+            done <<< "$installed"
+
             brew uninstall --cask "drycodeworks/tap/$cask"
           done <<< "$changed"
 

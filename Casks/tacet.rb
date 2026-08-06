@@ -13,6 +13,11 @@ cask "tacet" do
     strategy :github_latest
   end
 
+  # The published bundle is `Mach-O thin (arm64)`. Without this, brew installs
+  # it happily on an Intel Mac and the binary cannot execute — the cask's own
+  # CI exec check caught exactly that on the macos-15-intel runner. Rosetta
+  # does not help: it translates x86_64 to arm64, not the other way.
+  depends_on arch: :arm64
   depends_on macos: :ventura
 
   app "Tacet.app"
@@ -29,7 +34,9 @@ cask "tacet" do
   # the fact does not recover it, and neither does replacing the file — only a
   # different path does. So this has to run before anything execs the binary.
   #
-  # See DRYCodeWorks/tacet#25 for the isolation.
+  # See DRYCodeWorks/tacet#25 for the isolation. CI enforces that this keeps
+  # working: the cask job execs the installed bundle with --help and fails the
+  # build on a hang, which is the signature of this bug coming back.
   postflight do
     system_command "/usr/bin/xattr",
                    args: ["-dr", "com.apple.quarantine", "#{appdir}/Tacet.app"]

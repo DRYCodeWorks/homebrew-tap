@@ -69,7 +69,14 @@ jobs:
             [[ -n "$path" ]] || continue
             cask="$(basename "$path" .rb)"
             echo "==> Installing drycodeworks/tap/$cask"
+            # Snapshot first so we can exec ONLY what this cask added. A runner
+            # image ships its own apps, and some of them never exit on --help:
+            # "Google Chrome for Testing" hangs, which made a first version of
+            # this check fail every cask PR and blame the cask.
+            before="$(ls -1d /Applications/*.app 2>/dev/null | sort)"
             brew install --cask "drycodeworks/tap/$cask"
+            after="$(ls -1d /Applications/*.app 2>/dev/null | sort)"
+            installed="$(comm -13 <(echo "$before") <(echo "$after"))"
 
             # Installing is not evidence the thing runs. DRYCodeWorks/tacet#25
             # shipped a cask that installed perfectly, passed every check
@@ -83,8 +90,11 @@ jobs:
             # loader and never gets there. Bounded, because that failure mode
             # is a hang rather than a crash — unbounded, it would burn the job
             # timeout instead of naming the problem.
-            for app in /Applications/*.app; do
-              [[ -d "$app" ]] || continue
+            if [[ -z "$installed" ]]; then
+              echo "==> $cask added no .app to /Applications; nothing to exec."
+            fi
+            while read -r app; do
+              [[ -n "$app" && -d "$app" ]] || continue
               exe_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' \
                 "$app/Contents/Info.plist" 2>/dev/null)" || continue
               exe="$app/Contents/MacOS/$exe_name"
@@ -112,12 +122,12 @@ jobs:
               [[ $rc -eq 124 ]] || { wait "$pid"; rc=$?; }
               [[ $rc -eq 0 ]] && continue
               if [[ $rc -eq 124 ]]; then
-                echo "::error::$cask hangs on exec (rc=124) — likely a quarantine wedge, see DRYCodeWorks/tacet#25"
+                echo "::error::$cask: $app hangs on exec (rc=124) — likely a quarantine wedge, see DRYCodeWorks/tacet#25"
               else
-                echo "::error::$cask exited $rc on --help"
+                echo "::error::$cask: $app exited $rc on --help"
               fi
               exit 1
-            done
+            done <<< "$installed"
 
             brew uninstall --cask "drycodeworks/tap/$cask"
           done <<< "$changed"

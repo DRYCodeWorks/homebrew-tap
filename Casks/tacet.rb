@@ -17,6 +17,24 @@ cask "tacet" do
 
   app "Tacet.app"
 
+  # Casks quarantine by default, and for tacet that is fatal rather than merely
+  # annoying. Nothing ever launches this bundle through LaunchServices — launchd
+  # starts it, and install-server.sh execs it to verify the install. Exec'ing a
+  # quarantined bundle directly blocks in _dyld_start waiting on a first-launch
+  # consent decision that has no UI to answer it, so the app deadlocks before it
+  # runs a line of its own code. Notarization does not help: the gate is consent,
+  # not assessment, and `spctl -a` accepts the exact bundle that hangs.
+  #
+  # Worse, that first blocked launch wedges the *path*. Removing the xattr after
+  # the fact does not recover it, and neither does replacing the file — only a
+  # different path does. So this has to run before anything execs the binary.
+  #
+  # See DRYCodeWorks/tacet#25 for the isolation.
+  postflight do
+    system_command "/usr/bin/xattr",
+                   args: ["-dr", "com.apple.quarantine", "#{appdir}/Tacet.app"]
+  end
+
   # Deliberately NOT `depends_on formula: "whisper-cpp"`. One bundle plays two
   # roles: the menu-bar agent, and `tacet serve`, which is the only part that
   # needs whisper. Making it a hard dependency would build a large formula on

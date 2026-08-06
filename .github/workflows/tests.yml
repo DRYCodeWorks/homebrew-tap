@@ -73,9 +73,9 @@ jobs:
             # image ships its own apps, and some of them never exit on --help:
             # "Google Chrome for Testing" hangs, which made a first version of
             # this check fail every cask PR and blame the cask.
-            before="$(ls -1d /Applications/*.app 2>/dev/null | sort)"
+            before="$(find /Applications -maxdepth 1 -name '*.app' | sort)"
             brew install --cask "drycodeworks/tap/$cask"
-            after="$(ls -1d /Applications/*.app 2>/dev/null | sort)"
+            after="$(find /Applications -maxdepth 1 -name '*.app' | sort)"
             installed="$(comm -13 <(echo "$before") <(echo "$after"))"
 
             # Installing is not evidence the thing runs. DRYCodeWorks/tacet#25

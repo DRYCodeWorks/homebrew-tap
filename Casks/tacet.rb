@@ -29,7 +29,9 @@ cask "tacet" do
   # the fact does not recover it, and neither does replacing the file — only a
   # different path does. So this has to run before anything execs the binary.
   #
-  # See DRYCodeWorks/tacet#25 for the isolation.
+  # See DRYCodeWorks/tacet#25 for the isolation. CI enforces that this keeps
+  # working: the cask job execs the installed bundle with --help and fails the
+  # build on a hang, which is the signature of this bug coming back.
   postflight do
     system_command "/usr/bin/xattr",
                    args: ["-dr", "com.apple.quarantine", "#{appdir}/Tacet.app"]

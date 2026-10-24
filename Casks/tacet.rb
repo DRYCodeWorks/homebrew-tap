@@ -2,8 +2,7 @@ cask "tacet" do
   version "0.1.3"
   sha256 "6850c13401ee7e9666ab5abc81dc6b38a4d77b69be48a13a37344c64520e9e6b"
 
-  url "https://github.com/DRYCodeWorks/tacet/releases/download/v#{version}/Tacet.zip",
-      verified: "github.com/DRYCodeWorks/tacet/"
+  url "https://github.com/DRYCodeWorks/tacet/releases/download/v#{version}/Tacet.zip"
   name "Tacet"
   desc "Push-to-talk dictation that pastes the transcript at the cursor"
   homepage "https://github.com/DRYCodeWorks/tacet"
@@ -34,12 +33,18 @@ cask "tacet" do
   # the fact does not recover it, and neither does replacing the file — only a
   # different path does. So this has to run before anything execs the binary.
   #
+  # Install steps take only literal arguments, so there is no way to name
+  # #{appdir}/Tacet.app. Instead this clears the flag on the staged bundle
+  # (`chdir` defaults to staged_path) before the app artifact moves it:
+  # Homebrew quarantines the download and propagates the flag on extraction,
+  # and nothing re-applies it after the move. A file without the attribute
+  # makes xattr exit non-zero, which the old system_command also ignored.
+  #
   # See DRYCodeWorks/tacet#25 for the isolation. CI enforces that this keeps
   # working: the cask job execs the installed bundle with --help and fails the
   # build on a hang, which is the signature of this bug coming back.
-  postflight do
-    system_command "/usr/bin/xattr",
-                   args: ["-dr", "com.apple.quarantine", "#{appdir}/Tacet.app"]
+  preflight_steps do
+    run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "Tacet.app"], chdir: ".", must_succeed: false
   end
 
   # Deliberately NOT `depends_on formula: "whisper-cpp"`. One bundle plays two

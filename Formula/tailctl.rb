@@ -3,8 +3,8 @@ class Tailctl < Formula
 
   desc "Per-identity Tailscale networking for parallel sessions on a single Mac"
   homepage "https://github.com/DRYCodeWorks/tailctl"
-  url "https://files.pythonhosted.org/packages/eb/ec/44787a94cb609e6ad06ace0fe82fb5444acaa0e6c78a1100bdbd89d2adbb/tailctl-0.1.1.tar.gz"
-  sha256 "c4f63c97ea17a947c24f0b48232256a8b16707f962125186a234a34dc8ed20cc"
+  url "https://files.pythonhosted.org/packages/f0/be/bf470ff244523e00a83cad9a8b9cf1d70ba59fdb0bcb759969ec6d8efe59/tailctl-0.2.0.tar.gz"
+  sha256 "ba133a7d1df11b00f27647480cb60762e21f1596a6ee154055217b49c627f84f"
   license "MIT"
 
   # Bumps here are manual, so let `brew livecheck` spot new PyPI releases.
